@@ -33,7 +33,6 @@
     Size? canvasSize;
     late final diameter;
 
-
     @override
     void initState() {
       super.initState();
