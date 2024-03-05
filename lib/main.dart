@@ -1,9 +1,16 @@
+import 'package:example/osm_element_marker.dart';
 import 'package:example/smoke_animation.dart';
 import 'package:flutter/material.dart';
 
 void main() {
-  
+  var primaryColor = const Color(0xFFEC7C72);
   runApp(MaterialApp(
+    theme: ThemeData.light().copyWith(
+        primaryColor: primaryColor,
+        brightness: Brightness.light,
+        dividerColor: Colors.white54,
+        colorScheme: ColorScheme.light(primary: primaryColor),
+      ),
     home: Scaffold(
       appBar: AppBar(
         title: Text('Upload Animation Example'),
@@ -38,14 +45,15 @@ class _UploadAnimationState extends State<UploadAnimation> {
       children: [
         AnimateBubles(
           active: _isActive,
-          speed: 0.5,
-          bubbleCount: 1,
-          color: Colors.blue,
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            constraints: BoxConstraints(),
-            onPressed: () {},
-            icon: const Icon(Icons.arrow_circle_right, size: 150.0)
+          color: const Color(0xFFEC7C72),
+          child: const SizedBox(
+            width: 150,
+            height: 150,
+            child: OsmElementMarker(
+              icon: Icons.local_parking,
+              backgroundColor: Color(0xFFEC7C72),
+              label: 'Test',
+            ),
           ),
         ),
         const SizedBox(height: 30),
