@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:newton_particles/newton_particles.dart';
 
@@ -5,6 +7,7 @@ import 'package:newton_particles/newton_particles.dart';
     final bool active;
     final int emitDuration;
     final int bubbleCount;
+    final double distance;
     final Color color;
     final double radius;
     final Widget child;
@@ -13,10 +16,11 @@ import 'package:newton_particles/newton_particles.dart';
       required this.active,
       this.emitDuration = 300,
       this.bubbleCount = 1,
+      this.distance = 50,
       this.color = Colors.blue,
       this.radius = 4.0,
       required this.child,
-      super.key
+      super.key,
     });
 
     @override
@@ -24,9 +28,8 @@ import 'package:newton_particles/newton_particles.dart';
   }
 
   class _AnimateBublesState extends State<AnimateBubles> {
-    final widgetKey = GlobalKey();
+    final _widgetKey = GlobalKey();
     final newtonKey = GlobalKey<NewtonState>();
-    final List<Effect> _activeEffects = [];
     EffectConfiguration _effectConfiguration = const EffectConfiguration(
       minDuration: 4000,
       maxDuration: 7000,
@@ -34,22 +37,38 @@ import 'package:newton_particles/newton_particles.dart';
       maxFadeOutThreshold: 0.8,
     );
     late Effect _effect;
-    late double _canvasHeight;
+    late Effect _finalEffect;
     Size? _canvasSize;
 
     @override
     void initState() {
       super.initState();
-      WidgetsBinding.instance.addPostFrameCallback(reSizeCanvas);
+      //WidgetsBinding.instance.addPostFrameCallback(reSizeCanvas);
+      Future.delayed(const Duration(milliseconds: (1000 ~/ 16)), () {
+          reSizeCanvas();
+      });
     }
 
-    void reSizeCanvas(Duration updateTime) {
-      var context = widgetKey.currentContext;
+    Future<ui.Image> _generateImage() async {
+      final pictureRecorder = ui.PictureRecorder();
+      final canvas = Canvas(pictureRecorder);
+      final painter = PillPainter(color: widget.color);
+      painter.paint(canvas, const Size(50, 100));
+      final picture = pictureRecorder.endRecording();
+      final image = await picture.toImage(50, 100);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List imageData = byteData!.buffer.asUint8List();
+      ui.Codec codec = await ui.instantiateImageCodec(imageData);
+      ui.FrameInfo frameInfo = await codec.getNextFrame();
+      return frameInfo.image;
+    }
+
+    void reSizeCanvas() {
+      var context = _widgetKey.currentContext;
       if (context != null && context.size != null) {
         _canvasSize = context.size;
-        _canvasHeight = _canvasSize!.height + _canvasSize!.height/2;
         _effectConfiguration = _effectConfiguration.copyWith(
-          origin: Offset(_canvasSize!.width/2, _canvasSize!.height),
+          origin: Offset(_canvasSize!.width/2, _canvasSize!.height - widget.distance),
           emitDuration: widget.emitDuration,
           particlesPerEmit: widget.bubbleCount,
           maxDistance: _canvasSize!.height,
@@ -58,20 +77,23 @@ import 'package:newton_particles/newton_particles.dart';
           minEndScale: widget.radius,
           maxEndScale: widget.radius,
         );
-        _effect = SmokeEffect(
-          particleConfiguration: ParticleConfiguration(
-            shape: CircleShape(),
-            size: Size(widget.radius, widget.radius),
-            color: SingleParticleColor(color: widget.color),
-          ),
-          smokeWidth: _canvasSize!.width - 20 - widget.radius * 2,
-          effectConfiguration: _effectConfiguration,
-        );
-        setState(() {
-          if (widget.active == true ) {
-            _activeEffects.add(_effect);
-            _activeEffects[_activeEffects.length-1].start(); 
-          }
+        _generateImage().then((ui.Image image) {
+          _effect = SmokeEffect(
+            particleConfiguration: ParticleConfiguration(
+              shape: ImageShape(image),
+              size: Size(widget.radius, widget.radius),
+              color: SingleParticleColor(color: widget.color),
+            ),
+            smokeWidth: _canvasSize!.width - 20 - widget.radius * 2,
+            effectConfiguration: _effectConfiguration,
+          );
+          setState(() {
+            if (widget.active == true ) {
+              _finalEffect = _effect;
+              newtonKey.currentState?.addEffect(_finalEffect);
+              _finalEffect.start();
+            }
+          });
         });
       }
     }
@@ -82,11 +104,11 @@ import 'package:newton_particles/newton_particles.dart';
       if (widget.active != oldWidget.active) {
         setState(() {
           if (widget.active == true) {
-            _activeEffects[_activeEffects.length-1] = _effect;
-            _activeEffects[_activeEffects.length-1].start();
+            _finalEffect = _effect;
+            _finalEffect.start();
           }
           else {
-            _activeEffects[_activeEffects.length-1].stop();
+            _finalEffect.stop();
           }
         });
       }
@@ -94,29 +116,42 @@ import 'package:newton_particles/newton_particles.dart';
 
     @override
     Widget build(BuildContext context) {
-      return Column(
-        children: [
-          Stack(
-            key: widgetKey,
-            alignment: Alignment.bottomCenter,
-            children: <Widget>[
-              if (_canvasSize != null)
-              ...[
-                  SizedBox(
-                    width: _canvasSize!.width, 
-                    height: _canvasHeight, 
-                    child: Center(
-                      child: Newton(
-                        key: newtonKey, 
-                        activeEffects: _activeEffects,
-                    ),
-                  ),
-                ),
-              ],
-              widget.child,
-            ],
+      return Center(
+        child: Newton(
+          key: newtonKey, 
+          child: Padding(
+            key: _widgetKey,
+            padding: EdgeInsets.only(top: widget.distance),
+            child: widget.child
           ),
-        ]
+        ),
       );
     }
   }
+
+  class PillPainter extends CustomPainter {
+  final Color color;
+
+  PillPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.fill;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final radius = size.height / 2;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
+  }
+}
