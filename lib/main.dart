@@ -1,5 +1,5 @@
 import 'package:example/osm_element_marker.dart';
-import 'package:example/smoke_animation.dart';
+import 'package:example/upload_animation.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -13,24 +13,24 @@ void main() {
       ),
     home: Scaffold(
       appBar: AppBar(
-        title: Text('Upload Animation Example'),
+        title: const Text('Upload Animation Example'),
       ),
       body: const Center(
-        child: UploadAnimation(),
+        child: UploadAnimationDemo(),
       ),
     ),
   ));
 }
 
-class UploadAnimation extends StatefulWidget {
-  const UploadAnimation({Key? key}) : super(key: key);
+class UploadAnimationDemo extends StatefulWidget {
+  const UploadAnimationDemo({Key? key}) : super(key: key);
 
   @override
-  _UploadAnimationState createState() => _UploadAnimationState();
+  State<UploadAnimationDemo> createState() => _UploadAnimationDemoState();
 }
 
-class _UploadAnimationState extends State<UploadAnimation> {
-  bool _isActive = true;
+class _UploadAnimationDemoState extends State<UploadAnimationDemo> {
+  bool _isActive = false;
 
   void toggleAnimation() {
     setState(() {
@@ -39,12 +39,15 @@ class _UploadAnimationState extends State<UploadAnimation> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {  
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        AnimateBubles(
+        UploadAnimation(
+          width: 150,
+          padding: 12,
           active: _isActive,
+          emitDuration: 200,
           color: const Color(0xFFEC7C72),
           child: const SizedBox(
             width: 150,
